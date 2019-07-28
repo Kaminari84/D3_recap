@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Harbour Bot</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--<link href="d3_ts2/d3-timeseries/dist/d3_timeseries.min.css" rel="stylesheet">-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!--<script src="./d3_ts2/d3-timeseries/dist/d3_timeseries.min.js"></script>-->
+
+    
+    <!--STYLE-->
+    <style>
+    </style>
+
+    <!--SCRIPT-->
+    <script>
+        //Tutorial - https://www.dashingd3js.com/adding-an-svg-element
+        document.addEventListener('DOMContentLoaded', function(){
+            // do something
+            console.log("Document READY!");
+            
+            var bodySelection = d3.select("body");
+            
+            var svgSelection = bodySelection.append("svg")
+                .attr("width", 50)
+                .attr("height", 50);
+                
+            var circleSelection = svgSelection.append("circle")
+                .attr("cx", 25)
+                .attr("cy", 25)
+                .attr("r", 25)
+                .style("fill", "purple");
+
+            //binding to data
+            var theData = [ 1, 2, 3]
+
+            var p = d3.select("body").selectAll("p")
+                .data(theData)
+                .enter()
+                .append("p")
+                .text(function (d, i) { return "Elem #"+i+":"+d; } );
+
+            console.log(p);
+
+            //Glyphs for data
+            var circleRadii = [40,20,10];
+            var svgContainer = d3.select("#chart")
+            .attr("style","border: 1px solid red")
+            .append("svg")
+            .attr("width", 200)
+            .attr("height", 200);
+
+           
+        });
+    </script>
+
+    </head>
+<body>
+
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <div class="wrapper">
+     
+      <!-- Page Content  -->
+      <div id="content">
+
+          <div class="container-fluid">
+
+            <!--- Remaining elements -->
+            <div class="row">
+              <div class="col-lg-3">
+              </div>
+
+              <div class="col-lg-6 text-center">
+                  <h1>Test</h1>
+                  <div id="chart"></div>
+              </div>
+
+              <div class="col-lg-3">              
+              </div>
+            
+            </div> <!-- /ROW -->
+          </div> <!-- /container -->		
+    
+      </div> <!-- /content -->
+  </div>
+
+  <script type="text/javascript">
+      $(document).ready(function () {
+       /* console.log("Document ready!");
+        var data = [{date:new Date('2013-01-01'),n:120,n3:200},
+                    {date:new Date('2013-01-02'),n:100,n3:220}]
+
+        var chart = d3_timeseries()
+              .addSeries(data,{x:'date',y:'n',diff:'n3'},{interpolate:'monotone',color:"#333"})
+              .width(820)
+        */
+      });
+  </script>
+
+
+</body>
+</html>
