@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Harbour Bot</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--<link href="d3_ts2/d3-timeseries/dist/d3_timeseries.min.css" rel="stylesheet">-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!--<script src="./d3_ts2/d3-timeseries/dist/d3_timeseries.min.js"></script>-->
+
+    
+    <!--STYLE-->
+    <style>
+    </style>
+
+    <!--SCRIPT-->
+    <script>
+        //Tutorial - https://www.dashingd3js.com/adding-an-svg-element
+        document.addEventListener('DOMContentLoaded', function(){
+            // do something
+            console.log("Document READY!");
+
+            //d3.select("#circleT")
+            //    .attr('transform','rotate(90)');
+
+            var circleData = [
+                { "cx": 20, "cy": 20, "radius": 20, "color" : "green" },
+                { "cx": 70, "cy": 70, "radius": 20, "color" : "purple" }];
+
+            var rectangleData = [                
+                { "rx": 110, "ry": 110, "height": 30, "width": 30, "color" : "blue" },
+                { "rx": 160, "ry": 160, "height": 30, "width": 30, "color" : "red" }];
+
+            var svgContainer = d3.select("#transDiv").append("svg")
+                .attr("width",200)
+                .attr("height",200)
+                .style('border','1px solid purple');
+            
+            //Append the group tag
+            var circleGroup = svgContainer.append("g")
+                .attr('transform', 'translate(80,0)');
+            
+            //Create all the circle entries
+            var circles = circleGroup.selectAll("circle")
+                .data(circleData)
+                .enter()
+                .append("circle");
+            
+            //Fill out circle attributes
+            var circleAttributes = circles
+                .attr("cx", function (d) { return d.cx; })
+                .attr("cy", function (d) { return d.cy; })
+                .attr("r", function (d) { return d.radius; })
+                .style("fill", function (d) { return d.color; });
+
+            //Create all the rectangle entries
+            var rectangles = svgContainer.selectAll("rect")
+                .data(rectangleData)
+                .enter()
+                .append("rect");
+            
+            //Fill out the attributes of rectangles
+            var rectangleAttributes = rectangles
+                .attr("x", function (d) { return d.rx; })
+                .attr("y", function (d) { return d.ry; })
+                .attr("height", function (d) { return d.height; })
+                .attr("width", function (d) { return d.width; })
+                .style("fill", function(d) { return d.color; });
+
+        });
+
+        //https://www.w3schools.com/howto/howto_js_animate.asp
+        function myMove() {
+            var circleGroup = d3.select("#circleT") 
+            var pos = 0;
+            var id = setInterval(frame, 10);
+            function frame() {
+                if (pos >= 150) {
+                    clearInterval(id);
+                } else {
+                    pos++;
+                    circleGroup.attr('transform','translate('+pos+',0)');  
+                }
+            }
+        }
+
+
+    </script>
+        
+
+    </head>
+<body>
+    <button onclick="myMove()">Click Me</button>
+    <svg width="200" height="200">
+        <g id="circleT" transform="translate(80,0)">
+            <circle cx="20" cy="20" r="20" fill="green" />
+            <circle cx="70" cy="70" r="20" fill="purple" />
+        </g>
+        <g>
+            <rect x="110" y="110" height="30" width="30" fill="blue" />
+            <rect x="160" y="160" height="30" width="30" fill="red" />
+        </g>
+    </svg>
+
+    <div id="transDiv"></div>
+
+    
+    <!--Nested transformation from right to left-->
+    <!--<g transform="translate(...) scale(...) rotate(...) translate(...) rotate(...)"></g>-->
+    
+
+
+</body>
+</html>
