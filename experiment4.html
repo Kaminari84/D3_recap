@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Harbour Bot</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--<link href="d3_ts2/d3-timeseries/dist/d3_timeseries.min.css" rel="stylesheet">-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!--<script src="./d3_ts2/d3-timeseries/dist/d3_timeseries.min.js"></script>-->
+
+    
+    <!--STYLE-->
+    <style>
+    </style>
+
+    <!--SCRIPT-->
+    <script>
+        //Tutorial - https://www.dashingd3js.com/adding-an-svg-element
+        document.addEventListener('DOMContentLoaded', function(){
+            // do something
+            console.log("Document READY!");
+
+
+            var jsonRectangles = [
+                { "x_axis": 10, "y_axis": 10, "height":20, "width":20, "color":"green"},
+                { "x_axis": 120, "y_axis": 40, "height":20, "width":20, "color":"purple"},
+                { "x_axis": 70, "y_axis": 70, "height":20, "width":20, "color":"red"},
+            ];
+
+            var max_x = 0;
+            var max_y = 0;
+ 
+            for (var i = 0; i < jsonRectangles.length; i++) {
+                var temp_x, temp_y;
+                var temp_x = jsonRectangles[i].x_axis + jsonRectangles[i].width;
+                var temp_y = jsonRectangles[i].y_axis + jsonRectangles[i].height;
+                if ( temp_x >= max_x ) { max_x = temp_x; }
+                if ( temp_y >= max_y ) { max_y = temp_y; }
+            }
+
+            var svgContainer = d3.select("body").append("svg")
+                                    .attr("width", max_x)
+                                    .attr("height", max_y)
+                                    .style("border", "1px solid blue");
+            
+            var rectangles = svgContainer.selectAll("rect")
+                             .data(jsonRectangles)
+                             .enter()
+                             .append("rect");
+            
+            var rectangleAttributes = rectangles
+                          .attr("x", function (d) { return d.x_axis; })
+                          .attr("y", function (d) { return d.y_axis; })
+                          .attr("height", function (d) { return d.height; })
+                          .attr("width", function (d) { return d.width; })
+                          .style("fill", function(d) { return d.color; });
+
+
+            //Scaling in D3
+            //https://github.com/d3/d3-scale
+            var scale = d3.scaleLinear()
+                                    .domain([0,10000])
+                                    .range([0,100]);
+                                
+            console.log(scale(1));
+            console.log(scale(2));
+
+            var initialScaleData = [0, 1000, 3000, 2000, 5000, 4000, 7000, 6000, 9000, 8000, 10000];
+            var minInitialData = d3.min(initialScaleData);
+            var maxInitialData = d3.max(initialScaleData);
+            console.log("Min:"+minInitialData+", Max:"+maxInitialData);
+            var newScaledData = [];
+
+            var linearScale = d3.scaleLinear()
+                    .domain([d3.min(initialScaleData), d3.max(initialScaleData)])
+                    .range([0,100]);
+
+            for (var i = 0; i < initialScaleData.length; i++) {
+                newScaledData[i] = linearScale(initialScaleData[i]);
+            }
+           
+            console.log(newScaledData);
+           
+        });
+    </script>
+
+
+    </head>
+<body>
+
+
+</body>
+</html>
