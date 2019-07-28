@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Harbour Bot</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--<link href="d3_ts2/d3-timeseries/dist/d3_timeseries.min.css" rel="stylesheet">-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!--<script src="./d3_ts2/d3-timeseries/dist/d3_timeseries.min.js"></script>-->
+
+    
+    <!--STYLE-->
+    <style>
+    </style>
+
+    <!--SCRIPT-->
+    <script>
+        //Tutorial - https://www.dashingd3js.com/adding-an-svg-element
+        document.addEventListener('DOMContentLoaded', function(){
+            // do something
+            console.log("Document READY!");
+
+
+            var svgContainer = d3.select("body").append("svg")
+                                    .attr("width", 200)
+                                    .attr("height", 200)
+                                    .style("border", "1px solid black");
+
+            var pointsData = "05, 30 15,30 15,20 25,20 25,10 35,10";
+            
+            svgContainer.append("polyline")
+                .attr("fill", "none")
+                .attr("stroke", "blue")
+                .attr("stroke-width",2)
+                .attr("points", pointsData);
+
+            svgContainer.append("polygon")
+                .attr("fill", "yellow")
+                .attr("stroke", "blue")
+                .attr("stroke-width",2)
+                //.points.append("05,30")
+                //.points.append("15,10")
+                //.points.append("25,30");
+                .attr("points", "05,60 15,40 25,60")
+
+            //draw a path
+            svgContainer.append("path")
+                .attr('stroke','red')
+                .attr('stroke-width',2)
+                .attr('fill','none')
+                .attr('d','M 40 65 L 40 115 L 100 115 L 40 65');
+
+            // Draw a line
+            var lineData = [{"x":1,     "y":5}, 
+                            {"x":20,    "y":20},
+                            {"x":40,    "y":10},
+                            {"x":60,    "y":40},
+                            {"x":80,    "y":5},
+                            {"x":100,   "y":60}];
+            //Accessor function to extract point from data and add to line
+            var lineFunction = d3.line()
+                                    .x(function(d) { return d.x; })
+                                    .y(function(d) { return d.y; })
+                                    .curve(d3.curveStepBefore);
+                                    //d3.curveLinear
+                                    //d3.curveCatmullRom.alpha(0.5)
+                                    //d3.curveBasisClosed
+                                    //d3.curveBasis
+                                    //d3.curveStepBefore
+
+            //The SVG Container
+            var svgContainer = d3.select("#lineContainer").append("svg")
+                                        .attr("width", 200)
+                                        .attr("height", 200)
+                                        .style("border", "1px solid red");
+
+            var lineGraph = svgContainer.append("path")
+                                        .attr("d", lineFunction(lineData))
+                                        .attr("stroke", "blue")
+                                        .attr("stroke-width", 2)
+                                        .attr("fill", "none");
+
+            ///more tutorials: https://github.com/d3/d3-shape#line
+            // https://github.com/d3/d3-shape#curves
+
+
+
+
+
+            
+
+           
+           
+        });
+    </script>
+        <div id="lineContainer"></div>
+
+    </head>
+<body>
+
+
+</body>
+</html>
