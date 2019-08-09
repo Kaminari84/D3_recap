@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <title>Show APPL</title>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+
+        <!--SCRIPT-->
+        <script>
+
+            var ttData = [
+                {% for c in stock_prices | sort(attribute='datetime', reverse = True) %}
+                    { "date":new Date("{{ c.datetime }}"), "close": {{ c.close }} },
+                {% endfor %}
+            ];
+            
+            document.addEventListener('DOMContentLoaded', function(){
+                // do something
+                console.log("Document READY!");
+
+                var tsData = [ 
+                    {"date":new Date(2019,6,28), "i":1, "close": 34},
+                    {"date":new Date(2019,6,29), "i":2, "close": 38},
+                    {"date":new Date(2019,6,30), "i":3, "close": 36},
+                    {"date":new Date(2019,6,31), "i":4, "close": 32},
+                    {"date":new Date(2019,7,1), "i":5, "close": 33},
+                    {"date":new Date(2019,7,2), "i":6, "close": 35},
+                    {"date":new Date(2019,7,3), "i":7, "close": 37},
+                    {"date":new Date(2019,7,4), "i":8, "close": 34},
+                ];
+
+                console.log(ttData);
+
+                var margin = {top: 20, right: 20, bottom: 30, left: 50},
+                    width = 960 - margin.left - margin.right,
+                    height = 500 - margin.top - margin.bottom;
+
+                var x = d3.scaleTime()
+                    .domain([new Date(2019,6,25), new Date(2019,7,28)])
+                    .range([0, width])
+
+                var y = d3.scaleLinear()
+                    .domain([0,100])
+                    .range([height, 0]);
+
+                var xAxis = d3.axisBottom(x);
+                var yAxis = d3.axisLeft(y);
+
+                var line = d3.line()
+                    .x(function(d) { return x(d.date); })
+                    .y(function(d) { return y(d.close); });
+
+                x.domain(d3.extent(ttData, function(d) { return d.date; } ));
+                y.domain(d3.extent(ttData, function(d) { return d.close; } ));
+
+                //Create the SVG Viewport selection
+                var svgContainer = d3.select("#stock_plot").append("svg")
+                                .attr("width", width + margin.left + margin.right)
+                                .attr("height", height + margin.top + margin.bottom)
+                                .style('border','1px solid #cccccc')
+                            .append("g")
+                                .attr("transform","translate("+margin.left+","+(margin.top)+")")
+                            
+                svgContainer.append("g")
+                                .attr("class", "x axis")
+                                .attr("transform", "translate(0,"+height+")")    
+                                .call(xAxis)
+                
+                svgContainer.append("g")
+                                .attr("class","y axis")
+                                .call(yAxis)
+            
+                var lineGraph = svgContainer.append("path")
+                            .datum(ttData)
+                            .attr("d", line(ttData))
+                            .attr("stroke", "blue")
+                            .attr("stroke-width", 2)
+                            .attr("fill", "none");
+            });
+
+        </script>
+    </head>
+    
+    <body>
+        <center>
+            <h3>AAPL stock loaded from file</h3>
+            <div id="stock_plot"></div>
+
+            <div style="height:300px; overflow: scroll">
+                {% for c in stock_prices | sort(attribute='datetime', reverse = True) %}
+                <div>   
+                    [{{ loop.index}}] 
+                    Date:<b>{{ c.datetime }}</b>, 
+                    Close-Price:<b>{{ c.close }}</b>
+                </div> 
+                
+                {% endfor %}
+            </div>
+
+
+            
+            
+        </center>
+    </body>
+</html>
