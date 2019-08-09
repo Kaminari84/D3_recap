@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Harbour Bot</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--<link href="d3_ts2/d3-timeseries/dist/d3_timeseries.min.css" rel="stylesheet">-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!--<script src="./d3_ts2/d3-timeseries/dist/d3_timeseries.min.js"></script>-->
+
+    
+    <!--STYLE-->
+    <style>
+    </style>
+
+    <!--SCRIPT-->
+    <script>
+        //Tutorial - https://www.dashingd3js.com/adding-an-svg-element
+        document.addEventListener('DOMContentLoaded', function(){
+            // do something
+            console.log("Document READY!");
+            
+            var tsData = [ 
+                {"date":new Date(2019,6,28), "i":1, "close": 34},
+                {"date":new Date(2019,6,29), "i":2, "close": 38},
+                {"date":new Date(2019,6,30), "i":3, "close": 36},
+                {"date":new Date(2019,6,31), "i":4, "close": 32},
+                {"date":new Date(2019,7,1), "i":5, "close": 33},
+                {"date":new Date(2019,7,2), "i":6, "close": 35},
+                {"date":new Date(2019,7,3), "i":7, "close": 37},
+                {"date":new Date(2019,7,4), "i":8, "close": 34},
+            ];
+
+            var margin = {top: 20, right: 20, bottom: 30, left: 50},
+                width = 960 - margin.left - margin.right,
+                height = 500 - margin.top - margin.bottom;
+
+            //https://github.com/d3/d3-time-format 
+            //https://bl.ocks.org/wboykinm/34627426d84f3242e0e6ecb2339e9065           
+            var parseDate = d3.timeFormat("%B %d, %Y");
+            console.log("Parsed:"+parseDate("June 30, 2015"));
+            console.log("Gen:"+new Date(2019,6,28));
+            
+            //var x = d3.scaleLinear()
+            //    .domain([0,10])
+            //    .range([0, width]);
+            var x = d3.scaleTime()
+                //.domain([new Date(2019,6,25), new Date(2019,7,10)])
+                .range([0, width])
+
+            var y = d3.scaleLinear()
+                .domain([0,100])
+                .range([height, 0]);
+
+            var xAxis = d3.axisBottom(x);
+            var yAxis = d3.axisLeft(y);
+
+            var line = d3.line()
+                .x(function(d) { return x(d.date); })
+                .y(function(d) { return y(d.close); });
+            
+            var line2 = d3.line()
+                .x(function(d) { return x(d.date); })
+                .y(function(d) { return y(d.close+Math.random()); });
+            
+            x.domain(d3.extent(tsData, function(d) { return d.date; } ));
+            y.domain(d3.extent(tsData, function(d) { return d.close; } ));
+
+            //Create the SVG Viewport selection
+            var svgContainer = d3.select("body").append("svg")
+                            .attr("width", width + margin.left + margin.right)
+                            .attr("height", height + margin.top + margin.bottom)
+                            .style('border','1px solid #cccccc')
+                        .append("g")
+                            .attr("transform","translate("+margin.left+","+(margin.top)+")")
+                        
+            svgContainer.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform", "translate(0,"+height+")")    
+                            .call(xAxis)
+            
+            svgContainer.append("g")
+                            .attr("class","y axis")
+                            .call(yAxis)
+        
+            var lineGraph = svgContainer.append("path")
+                        .datum(tsData)
+                        .attr("d", line(tsData))
+                        .attr("stroke", "blue")
+                        .attr("stroke-width", 2)
+                        .attr("fill", "none");
+
+            var lineGraph = svgContainer.append("path")
+                        .datum(tsData)
+                        .attr("d", line2(tsData))
+                        .attr("stroke", "red")
+                        .attr("stroke-width", 2)
+                        .attr("fill", "none");
+
+            //d3.json(tsData).then(function(data) {
+            //    console.log(data[0]);
+            //})
+
+            
+
+
+           
+        });
+
+       
+
+    </script>
+        
+
+    </head>
+<body>
+    
+   
+
+</body>
+</html>
