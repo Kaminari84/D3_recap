@@ -2,6 +2,7 @@ from flask import Flask, request, make_response, render_template, current_app, g
 import json
 import os
 import numpy as np
+from scipy.special import softmax
 
 app = Flask(__name__)
 app.app_context().push()
@@ -12,8 +13,16 @@ idx2state = []
 action2idx = {}
 idx2action = []
 
+# Q-learning
 e_param0 = 1.0
 e_param_decay = 0.01
+
+learning_rate0 = 0.95
+learning_rate_decay = 0.05
+
+gamma = 0.95 # the discount factor
+
+
 
 #http://kronosapiens.github.io/blog/2014/08/14/understanding-contexts-in-flask.html
 #https://github.com/Kaminari84/GCloud_work_reflection_bot/blob/master/dataMgr.py
@@ -34,8 +43,11 @@ def setup_app(app):
         # within this block, current_app points to app.
         print("App name:",current_app.name)
         current_app.Q = np.full((1,1), -1.0)
+        current_app.ET = np.full((1,1), -1)
         current_app.iteration = 0
         current_app.e_param = 1.0
+        current_app.learning_rate = 1.0
+        current_app.transition_history = []
 
     print("Start the actual server...")
 
@@ -103,6 +115,45 @@ def set_e_param():
     
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
+@app.route('/setReward')
+def set_reward():
+    print('Setting reward')
+
+    conv_id = request.args.get('conv_id')
+    dimension = request.args.get('dimension')
+    reward = request.args.get('reward')
+
+    print("Conv id"+str(conv_id))
+    print("Dimension:"+str(dimension))
+    print("Reward:"+str(reward))
+
+    with app.app_context():
+        print("Current e-param:", current_app.e_param)
+
+        current_app.learning_rate = learning_rate0 / (1 + current_app.iteration * learning_rate_decay)
+        print("  Learning rate:", current_app.learning_rate)
+
+        # loop through the history of transitions to this point
+        for t in current_app.transition_history:
+            print("  T -> ("+str(idx2state[t[0]])+", "+str(idx2action[t[1]])+", ", end='')
+            next_state = t[2]
+            if next_state == None:
+                next_state = "END"
+            else:
+                next_state = idx2state[next_state]
+
+            print(str(next_state+")"))
+            
+            #print("  Q[s,a]:", current_app.Q[s, a])
+            #print("  np.max(Q[sp]):", np.max(current_app.Q[sp]))
+
+
+
+        json_resp = json.dumps({'status': 'OK', 
+                                'message':''})
+    
+    return make_response(json_resp, 200, {"content_type":"application/json"})
+
 @app.route('/getQTable')
 def get_q_table():
     print('returning Q table:')
@@ -111,6 +162,7 @@ def get_q_table():
         # within this block, current_app points to app.
         print("App name:",current_app.name)
         print("Q:",current_app.Q)
+        print("ET:",current_app.ET)
 
         #for a in range(Q.shape[1]):
         #    print("\t"+str(idx2action[a]), end='')
@@ -122,7 +174,11 @@ def get_q_table():
         #        print("\t"+str(Q[s,a]), end=' | ')
         #    print("")
 
-        json_resp = json.dumps({ 'status': 'OK', 'message':'', 'q-table': current_app.Q.tolist()})#ctx.g.Q.tolist()})
+        json_resp = json.dumps({ 
+            'status': 'OK', 'message':'', 
+            'q-table': current_app.Q.tolist(),
+            'et-table': current_app.ET.tolist()
+        })
 
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
@@ -133,6 +189,7 @@ def init_q_table():
         # within this block, current_app points to app.
         print("App name:",current_app.name)
         print("Q:",current_app.Q)
+        print("ET:",current_app.ET)
         
     conv_id = request.args.get('conv_id')
     states = json.loads(request.args.get('states'))
@@ -160,8 +217,7 @@ def init_q_table():
     print("Actions in states:"+str(actions_in_states))
 
     Q = np.full((len(states), len(actions)), 0.0) # -inf for impossible actions
-    #for state, actions in enumerate(possible_actions):
-    #    Q[state, actions] = 0.0 # Initial value = 0.0, for all possible actions
+    ET = np.full((len(states), len(actions)), 0) # -inf for impossible action
 
     print('Q table:')
     # header for actions
@@ -177,6 +233,7 @@ def init_q_table():
 
     with app.app_context():
         current_app.Q = Q
+        current_app.ET = ET
         current_app.actions_in_states = actions_in_states
 
     json_resp = json.dumps({ 'status': 'OK', 'message':''})
@@ -204,22 +261,35 @@ def select_rl_action():
         # within this block, current_app points to app.
         print("Iterations:",current_app.iteration)
 
+        s_idx = getStateIndex(state)
+        print("  State:", s_idx, ", State abbr:"+str(state['utterance_id'])+"_"+str(state['answer_id']))
+
+        # update final state for previous transition
+        if len(current_app.transition_history) > 0:
+            print("There is previous unfinished transition...")
+            current_app.transition_history[-1][2] = s_idx
+            print("Last transition full: "+str(current_app.transition_history[-1]))
+
         #Decide whether to do greedy or random
         rnd = np.random.random_sample()
         e_param = e_param0 / (1 + current_app.iteration * e_param_decay)
-        s_idx = getStateIndex(state)
+        
         print("  E-param:",e_param)
-        print("  State:", s_idx, ", State abbr:"+str(state['utterance_id'])+"_"+str(state['answer_id']))
-
+        
         if rnd<e_param: # be random
-            #print("  ET:",ET[s], ", softmax:",(1.0-softmax(ET[s])))
-            print("  Actions in state:"+str(current_app.actions_in_states[s_idx]))
-            action_id = np.random.choice(current_app.actions_in_states[s_idx])#, p=(1.0-softmax(ET[s]))) # choose an action (randomly)
-            print("  Random action:", action_id)
+            print("  ET:",current_app.ET[s_idx], ", softmax:",(1.0-softmax(current_app.ET[s_idx])))
+            print("  Actions available:"+str(current_app.actions_in_states[s_idx]))
+            action_id = np.random.choice(current_app.actions_in_states[s_idx], 
+                                         p=(1.0-softmax(current_app.ET[s_idx]))) # choose an action (randomly)
+            print("  Random action chosen:", action_id)
         else: # be greedy
             action_id = np.argmax(current_app.Q, axis=1)[s_idx]
-            print("  Greedy action:", action_id)
+            print("  Greedy action chosen:", action_id)
 
+        #register this state and action in transition history, leave next state empty
+        current_app.transition_history.append([s_idx, action_id, None])
+
+        current_app.ET[s_idx, action_id] += 1
         current_app.iteration += 1
         current_app.e_param = e_param    
 

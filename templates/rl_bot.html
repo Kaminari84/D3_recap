@@ -349,8 +349,9 @@
                 text: "Are you feeling OK?", 
                 type: "Options",
                 options: [ 
-                    {value: "Yes", text : "Yes" },
-                    {value: "No", text : "No" } 
+                    {value: "Yes", text: "Yes" },
+                    {value: "No", text: "No" },
+                    {value: "Somewhat", text: "Somewhat"} 
                 ],
 				reactions: {
 				    Yes: {
@@ -360,6 +361,10 @@
                     No: {
                         emph: { text: "That's bad."}, 
                         rude: { text: "I am glad."}
+                    },
+                    Somewhat: {
+                        emph: { text: "Can I help?"},
+                        rude: { text: "Hope it will get even worse"}
                     }
                 }	 
             },
@@ -386,6 +391,9 @@
 
             {
                 text: "How natural were Harbor's reactions to your answers?",
+                evaluation : {
+                    dimension: "Naturalness"
+                },
                 type: "Likert-7",
             },
             
@@ -405,6 +413,7 @@
             console.log("Document READY!");
             
             //register function for reporting slider value changes
+            //https://stackoverflow.com/questions/21869046/bootstrap-slider-change-value-handler
             $('#e-param').slider()
                 .on('slideStop', setEparam);
             
@@ -493,7 +502,7 @@
                     console.log("Response status: "+obj.status);
                     if (obj.status == "OK") {
                         console.log("Call status OK!");
-                        renderQTable(obj['q-table']);
+                        renderQTable(obj['q-table'], obj['et-table']);
                     } else {
                         console.log("Error:"+obj.message);
                     }
@@ -501,10 +510,12 @@
             });
         }
 
-        function renderQTable(q_table) {
+        function renderQTable(q_table, et_table) {
             console.log("Got Q table argument...");
             console.log("Q-table:");
             console.log(q_table)
+            console.log("ET-table:");
+            console.log(et_table)
 
             var qt = document.getElementById("q-table");
             qt.innerHTML = "Got table!";
@@ -527,7 +538,7 @@
                     //console.log("Len actions:"+size_dict(actions))
                     //var idx = state*size_dict(actions)+act_n;
                     //console.log("IDX:"+idx);
-                    q_elem.innerHTML = q_table[state][act_n];
+                    q_elem.innerHTML = q_table[state][act_n]+", "+et_table[state][act_n];
 
                     entry.appendChild(state_elem);
                     entry.appendChild(action_elem);
@@ -607,8 +618,6 @@
                 }
             }
 
-           
-
             console.log("States length:"+states.length);
             for (state in states) {
                 console.log("->Utter: "+states[state].utterance_id, ", Ans:"+states[state].answer_text);
@@ -648,7 +657,6 @@
                     }
                 }
             });
-        
         }
 
         function selectReaction(state, actions) {
@@ -675,12 +683,44 @@
                         selected_reaction_class = obj.action_class;
                         progressDialogue(dialogue_position, true);
                         getEparam();
+                        getQValueTable();
                     } else {
                         console.log("Error:"+obj.message);
                     }
                 }
             });
         }
+
+        function registerReward(dimension, reward) {
+            console.log("Calling server to register reward for dimension:"+dimension);
+            
+            var request = $.ajax({
+                url: "/setReward",
+                type: "GET",
+                // the data needs to be a properly formatted JSON, otherwise the server will complain
+                data: { conv_id: conversation_uuid, 
+                        dimension: dimension, 
+                        reward: reward 
+                    },
+                dataType: "html",
+                async: true, 
+                success : function (msg)
+                {
+                    console.log("Called ser reward successfully!");
+                    var obj = JSON.parse(msg);
+                    //check server response, it should have status="OK", otherwise it will be status="error" and a message with error description
+                    console.log("Response status: "+obj.status);
+                    if (obj.status == "OK") {
+                        console.log("Reward registered!");
+                        getQValueTable();
+                    } else {
+                        console.log("Error:"+obj.message);
+                    }
+                }
+            });
+        }
+
+
 
         function progressDialogue(givenPosition = dialogue_position, isReaction = false) {
             console.log("Progressing dialogue, current position: "+ givenPosition);
@@ -738,6 +778,14 @@
                             
                             dialogue_position += 1;
                             progressDialogue();
+
+                            //This is an evaluation block - communicate reward
+                            if ("evaluation" in dialogue[givenPosition]) {
+                                console.log("In an evaluation block:");
+                                dimension = dialogue[givenPosition]['evaluation']['dimension'];
+                                console.log("Dimension:"+dimension);
+                                registerReward(dimension, res.value-3);
+                            }
 
                         });
                         break;
