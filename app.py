@@ -12,8 +12,15 @@ idx2state = []
 action2idx = {}
 idx2action = []
 
+e_param0 = 1.0
+e_param_decay = 0.01
+
 #http://kronosapiens.github.io/blog/2014/08/14/understanding-contexts-in-flask.html
 #https://github.com/Kaminari84/GCloud_work_reflection_bot/blob/master/dataMgr.py
+#https://botsociety.io/blog/2019/03/botsociety-dialogflow/
+#https://medium.com/@jonathan_hui/rl-model-based-reinforcement-learning-3c2b6f0aa323
+#https://towardsdatascience.com/model-based-reinforcement-learning-cb9e41ff1f0d
+
 def setup_app(app):
     print("Loading the server, first init global vars...")
     #DataMgr.load_team_auths()
@@ -27,6 +34,8 @@ def setup_app(app):
         # within this block, current_app points to app.
         print("App name:",current_app.name)
         current_app.Q = np.full((1,1), -1.0)
+        current_app.iteration = 0
+        current_app.e_param = 1.0
 
     print("Start the actual server...")
 
@@ -35,7 +44,7 @@ setup_app(app)
 #map state params into unique index
 def getStateIndex(state):
     state_str = str(state['utterance_id'])+"_"+str(state['answer_id'])
-    print("Check if state registered: "+str(state_str))
+    #print("Check if state registered: "+str(state_str))
     if state_str in state2idx:
         return state2idx[state_str]
     else:
@@ -67,6 +76,18 @@ def test_layout():
 @app.route('/rl_bot')
 def rl_bot():
     return render_template('rl_bot.html')
+
+@app.route('/getEParam')
+def get_e_param():
+    print('returning E param:')
+
+    with app.app_context():
+        print("Current e-param:", current_app.e_param)
+        json_resp = json.dumps({'status': 'OK', 
+                                'message':'', 
+                                'e-param': current_app.e_param})
+    
+    return make_response(json_resp, 200, {"content_type":"application/json"})
 
 @app.route('/getQTable')
 def get_q_table():
@@ -114,6 +135,16 @@ def init_q_table():
     for action_id, action_params in actions.items():
         print("Action ID:"+str(action_id)+", IDX:"+str(getActionIndex(action_params)))
 
+    actions_in_states = [[] for s in states]
+    # assigning actions in states
+    for state in states:
+        s_idx = getStateIndex(state)
+        for action in state['actions_in_state']:
+            a_idx = getActionIndex(action)
+            actions_in_states[s_idx].append(a_idx)
+
+    print("Actions in states:"+str(actions_in_states))
+
     Q = np.full((len(states), len(actions)), 0.0) # -inf for impossible actions
     #for state, actions in enumerate(possible_actions):
     #    Q[state, actions] = 0.0 # Initial value = 0.0, for all possible actions
@@ -129,10 +160,10 @@ def init_q_table():
         for a in range(Q[s].shape[0]):
             print("\t"+str(Q[s,a]), end=' | ')
         print("")
-    #ctx.push()
 
     with app.app_context():
         current_app.Q = Q
+        current_app.actions_in_states = actions_in_states
 
     json_resp = json.dumps({ 'status': 'OK', 'message':''})
 
@@ -152,8 +183,29 @@ def select_rl_action():
     print("Number of actions to choose from:"+str(len(actions['reaction_list'])))
     selected_action = np.random.choice(actions['reaction_list'])
     action_id = actions['reaction_list'].index(selected_action)
+    print("Action ID: "+str(action_id))
 
-    
+    with app.app_context():
+        # within this block, current_app points to app.
+        print("Iterations:",current_app.iteration)
+
+        #Decide whether to do greedy or random
+        rnd = np.random.random_sample()
+        e_param = e_param0 / (1 + current_app.iteration * e_param_decay)
+        s_idx = getStateIndex(state)
+        print("  E-param:",e_param)
+        print("  State:", s_idx, ", State abbr:"+str(state['utterance_id'])+"_"+str(state['answer_id']))
+
+        if rnd<e_param: # be random
+            #print("  ET:",ET[s], ", softmax:",(1.0-softmax(ET[s])))
+            a = np.random.choice(current_app.actions_in_states[s_idx])#, p=(1.0-softmax(ET[s]))) # choose an action (randomly)
+            print("  Random action:",a)
+        else: # be greedy
+            a = np.argmax(current_app.Q, axis=1)[s_idx]
+            print("  Greedy action:",a)
+
+        current_app.iteration += 1
+        current_app.e_param = e_param    
 
     json_resp = json.dumps({ 'status': 'OK', 'message':'', 'action_id': action_id })
 
