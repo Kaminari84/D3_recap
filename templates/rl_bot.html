@@ -313,7 +313,7 @@
                     <div id="e-param-label"></div>
                     <b>0%</b> 
                     <input id="e-param" 
-                        data-slider-id='ex1Slider' 
+                        data-provide="slider"
                         type="text" 
                         data-slider-min="0" 
                         data-slider-max="100" 
@@ -341,7 +341,7 @@
         var conversation_uuid = guid(); // Unique identifier of this conversation - for logging
 	    var latest_answer = "Default";
         var wasReaction = false;
-        var selected_reaction_id = 0;
+        var selected_reaction_class = "";
 
         var dialogue = [ 
             {   
@@ -353,14 +353,14 @@
                     {value: "No", text : "No" } 
                 ],
 				reactions: {
-				    Yes: [
-                        {label:"emph", text: "That's good."}, 
-                        {label:"rude", text: "I envy you."}
-                    ],
-                    No: [
-                        {label:"emph", text: "That's bad."}, 
-                        {label:"rude", text: "I am glad."}
-                    ]
+				    Yes: {
+                        emph: { text: "That's good."}, 
+                        rude: { text: "I envy you."}
+                    },
+                    No: {
+                        emph: { text: "That's bad."}, 
+                        rude: { text: "I am glad."}
+                    }
                 }	 
             },
 
@@ -373,14 +373,14 @@
                     {value: "No", text : "No" } 
                 ],
 				reactions: {
-				    Yes: [
-                        {label:"emph", text: "That's reassuring"}, 
-                        {label:"rude", text: "I don't, I am jelly."}
-                    ],
-                    No: [
-                        {label:"emph", text: "Sounds stressful."},
-                        {label:"rude", text: "It makes me happy"}
-                    ]
+				    Yes: {
+                        emph: { text: "That's reassuring"}, 
+                        rude: { text: "I don't, I am jelly."}
+                    },
+                    No: {
+                        emph: { text: "Sounds stressful."},
+                        rude: { text: "It makes me happy"}
+                    }
                 }	 
             },
 
@@ -405,22 +405,45 @@
             console.log("Document READY!");
             
             //register function for reporting slider value changes
-            $('#e-param').slider({
-                formatter: function(eparam) {
-                    return eparam;
-                }
-            });
+            $('#e-param').slider()
+                .on('slideStop', setEparam);
             
             //create the Q-table based on dialogue specification
             registerStatesandActions();  
 
             //Get and show current e-param value
-            getCurrentEparamValue();
+            getEparam();
         });
 
         function size_dict(d){c=0; for (i in d) ++c; return c}
 
-        function getCurrentEparamValue() {
+        function setEparam(event) {
+            console.log("Setting e-param on server from GUI...");
+            console.log(event.value);
+
+            var request = $.ajax({
+                url: "/setEParam",
+                type: "GET",
+                // the data needs to be a properly formatted JSON, otherwise the server will complain
+                data: { conv_id: conversation_uuid, e_param: (event.value/100.0)},
+                dataType: "html",
+                async: true, 
+                success : function (msg)
+                {
+                    console.log("Called setEParam successfully!");
+                    var obj = JSON.parse(msg);
+                    //check server response, it should have status="OK", otherwise it will be status="error" and a message with error description
+                    console.log("Response status: "+obj.status);
+                    if (obj.status == "OK") {
+                        console.log("Call status OK!");
+                    } else {
+                        console.log("Error:"+obj.message);
+                    }
+                }
+            });
+        }
+
+        function getEparam() {
             console.log("Requesting E param value...");
             var request = $.ajax({
                 url: "/getEParam",
@@ -547,9 +570,9 @@
                     //Actions
                     if ('reactions' in dialogue[dp]) {
                         for (ans in dialogue[dp]['reactions']) {
-                            for (var act_n=0; act_n<dialogue[dp]['reactions'][ans].length; act_n++) {
-                                var label = dialogue[dp]['reactions'][ans][act_n]['label'];
-                                var text = dialogue[dp]['reactions'][ans][act_n]['text'];
+                            for (react in dialogue[dp]['reactions'][ans]) {
+                                var label = react;
+                                var text = dialogue[dp]['reactions'][ans][react]['text'];
 
                                 console.log("Action class:"+label);
 
@@ -557,7 +580,6 @@
                                     actions[label].action_texts.push(text);
                                 } else {
                                     var action_params = {
-                                        'action_n':act_n,
                                         'action_class': label,
                                         'action_texts': [text]  
                                     }
@@ -649,10 +671,10 @@
                     //check server response, it should have status="OK", otherwise it will be status="error" and a message with error description
                     console.log("Response status: "+obj.status);
                     if (obj.status == "OK") {
-                        console.log("Selected action id:"+obj.action_id)
-                        selected_reaction_id = obj.action_id;
+                        console.log("Selected action class:"+obj.action_class)
+                        selected_reaction_class = obj.action_class;
                         progressDialogue(dialogue_position, true);
-                        getCurrentEparamValue();
+                        getEparam();
                     } else {
                         console.log("Error:"+obj.message);
                     }
@@ -678,7 +700,7 @@
             if (isReaction == true) {
                 responseType = "Reaction"; //This is a reaction, change a response type for question
                 if (latest_answer in dialogue[givenPosition]["reactions"]) {
-                    msg_spec['content'] = dialogue[givenPosition]["reactions"][latest_answer][selected_reaction_id]['text'];
+                    msg_spec['content'] = dialogue[givenPosition]["reactions"][latest_answer][selected_reaction_class]['text'];
                 } else {
                     //No matching text for this answer option, this should not happen, the conditional in response should not allow this!
                     msg_spec['content'] = "Missing matching reaction text for answer option: "+latest_answer;

@@ -89,6 +89,20 @@ def get_e_param():
     
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
+@app.route('/setEParam')
+def set_e_param():
+    print('setting E param:')
+    e_param = request.args.get('e_param')
+
+    with app.app_context():
+        print("Old e-param:", current_app.e_param)
+        current_app.e_param = e_param
+        print("New e-param:", current_app.e_param)
+        json_resp = json.dumps({'status': 'OK', 
+                                'message':''})
+    
+    return make_response(json_resp, 200, {"content_type":"application/json"})
+
 @app.route('/getQTable')
 def get_q_table():
     print('returning Q table:')
@@ -176,14 +190,15 @@ def select_rl_action():
     state = json.loads(request.args.get('state'))
     actions = json.loads(request.args.get('actions'))
 
-    print("Conv id"+str(conv_id))
+    #print("Conv id"+str(conv_id))
     print("State:"+str(state))
-    print("Actions:"+str(actions))
+    #print("Actions:"+str(actions))
 
-    print("Number of actions to choose from:"+str(len(actions['reaction_list'])))
-    selected_action = np.random.choice(actions['reaction_list'])
-    action_id = actions['reaction_list'].index(selected_action)
-    print("Action ID: "+str(action_id))
+    #print("Number of actions to choose from:"+str(len(actions['reaction_list'])))
+    #selected_action = np.random.choice(actions['reaction_list'])
+    #action_id = actions['reaction_list'].index(selected_action)
+    #print("Action ID: "+str(action_id))
+    action_id = -1
 
     with app.app_context():
         # within this block, current_app points to app.
@@ -198,16 +213,19 @@ def select_rl_action():
 
         if rnd<e_param: # be random
             #print("  ET:",ET[s], ", softmax:",(1.0-softmax(ET[s])))
-            a = np.random.choice(current_app.actions_in_states[s_idx])#, p=(1.0-softmax(ET[s]))) # choose an action (randomly)
-            print("  Random action:",a)
+            print("  Actions in state:"+str(current_app.actions_in_states[s_idx]))
+            action_id = np.random.choice(current_app.actions_in_states[s_idx])#, p=(1.0-softmax(ET[s]))) # choose an action (randomly)
+            print("  Random action:", action_id)
         else: # be greedy
-            a = np.argmax(current_app.Q, axis=1)[s_idx]
-            print("  Greedy action:",a)
+            action_id = np.argmax(current_app.Q, axis=1)[s_idx]
+            print("  Greedy action:", action_id)
 
         current_app.iteration += 1
         current_app.e_param = e_param    
 
-    json_resp = json.dumps({ 'status': 'OK', 'message':'', 'action_id': action_id })
+    print("Action ID: "+str(action_id), ", type:"+idx2action[action_id])
+
+    json_resp = json.dumps({ 'status': 'OK', 'message':'', 'action_class': str(idx2action[action_id]) })
 
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
