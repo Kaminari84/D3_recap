@@ -596,39 +596,10 @@
                     var col = document.createElement("div");
                     col.className = "col-sm-"+div_size;
                     col.style.border = "1px solid black";
-                    col.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+", "+q_table[state_lbl][action_lbl]['count'];
+                    col.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+" ("+q_table[state_lbl][action_lbl]['count']+","+q_table[state_lbl][action_lbl]['r-count']+")";
                     row.appendChild(col);
 
-                    /*var entry = document.createElement('div');
                     
-                    var state_elem = document.createElement('span');
-                    state_elem.innerHTML = "<b>"+states[state].utterance_id+"-"+states[state].answer_text+" -- </b>";
-                    
-                    var action_elem = document.createElement("span");
-                    state_elem.style.marginRight = "5px";
-                    action_elem.innerHTML = "<b>"+actions[action].action_class+":</b>";
-                    
-                    var q_elem = document.createElement("span");
-                    state_elem.style.marginLeft = "5px";
-                    //console.log("state:"+state);
-                    //console.log("action:"+act_n)
-                    //console.log("Len actions:"+size_dict(actions))
-                    //var idx = state*size_dict(actions)+act_n;
-                    //console.log("IDX:"+idx);
-                    state_lbl = state2lbl(states[state]);
-                    console.log('State label:'+state_lbl);
-                    action_lbl = action2lbl(actions[action])
-                    console.log("Action label:"+action_lbl);
-                    console.log("State actions:"+q_table[state_lbl]);
-                    console.log("Action value:"+q_table[state_lbl][action_lbl]);
-
-                    q_elem.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+", "+q_table[state_lbl][action_lbl]['count'];
-
-                    entry.appendChild(state_elem);
-                    entry.appendChild(action_elem);
-                    entry.appendChild(q_elem);
-
-                    qt.appendChild(entry);*/
                     act_n += 1;
 
                 }

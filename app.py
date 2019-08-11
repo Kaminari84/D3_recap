@@ -44,6 +44,7 @@ def setup_app(app):
         print("App name:",current_app.name)
         current_app.Q = np.full((1,1), -1.0)
         current_app.ET = np.full((1,1), -1)
+        current_app.rET = np.full((1,1), -1)
         current_app.iteration = 0
         current_app.e_param = 1.0
         current_app.learning_rate = 1.0
@@ -190,6 +191,7 @@ def get_q_table():
                 # Ideally loop through evaluation dimensions
                 eval_dims['q-value'] = current_app.Q[s_id, a_id]
                 eval_dims['count'] = str(current_app.ET[s_id, a_id])
+                eval_dims['r-count'] = str(current_app.rET[s_id, a_id])
 
                 state_spec[idx2action[a_id]] = eval_dims
                 print("["+str(idx2state[s_id])+", "+str(idx2action[a_id])+"]:"+str(current_app.Q[s_id,a_id]))
@@ -209,9 +211,7 @@ def get_q_table():
 
         json_resp = json.dumps({ 
             'status': 'OK', 'message':'', 
-            'q-table': current_app.Q.tolist(),
-            'full-q-table': full_q_table,
-            'et-table': current_app.ET.tolist(),
+            'full-q-table': full_q_table
         })
 
     return make_response(json_resp, 200, {"content_type":"application/json"})
@@ -223,7 +223,7 @@ def init_q_table():
         # within this block, current_app points to app.
         print("App name:",current_app.name)
         print("Q:",current_app.Q)
-        print("ET:",current_app.ET)
+        #print("ET:",current_app.ET)
         
     conv_id = request.args.get('conv_id')
     states = json.loads(request.args.get('states'))
@@ -253,6 +253,7 @@ def init_q_table():
 
     Q = np.full((len(states), len(actions)), 0.0) # -inf for impossible actions
     ET = np.full((len(states), len(actions)), 0) # -inf for impossible action
+    rET = np.full((len(states), len(actions)), 0) # -inf for impossible action
 
     print('Q table:')
     # header for actions
@@ -269,6 +270,7 @@ def init_q_table():
     with app.app_context():
         current_app.Q = Q
         current_app.ET = ET
+        current_app.rET = rET
         current_app.actions_in_states = actions_in_states
 
     json_resp = json.dumps({ 'status': 'OK', 'message':''})
@@ -310,18 +312,20 @@ def select_rl_action():
         e_param = e_param0 / (1 + current_app.iteration * e_param_decay)
         
         print("  E-param:",e_param)
-        
+        isRandom = False
         if rnd<e_param: # be random
-            print("  ET:",current_app.ET[s_idx], ", softmax:",(1.0-softmax(current_app.ET[s_idx])))
+            isRandom = True
+            print("  rET:",current_app.rET[s_idx], ", softmax:",(1.0-softmax(current_app.rET[s_idx])))
             print("  Actions available: ", end='')
             for act_id in current_app.actions_in_states[s_idx]:
                 print(str(idx2action[act_id])+"("+str(act_id)+")", end=' ')
             print("")
 
             action_id = np.random.choice(current_app.actions_in_states[s_idx], 
-                                         p=(1.0-softmax(current_app.ET[s_idx]))) # choose an action (randomly)
+                                         p=(1.0-softmax(current_app.rET[s_idx]))) # choose an action (randomly)
             print("  Random action chosen:", idx2action[action_id]+"("+str(action_id)+")" )
         else: # be greedy
+            isRandom = False
             action_id = np.argmax(current_app.Q, axis=1)[s_idx]
             print("  Greedy action chosen:", idx2action[action_id]+"("+str(action_id)+")" )
 
@@ -329,6 +333,8 @@ def select_rl_action():
         current_app.transition_history.append([s_idx, action_id, None])
 
         current_app.ET[s_idx, action_id] += 1
+        if isRandom:
+            current_app.rET[s_idx, action_id] += 1
         current_app.iteration += 1
         current_app.e_param = e_param    
 
