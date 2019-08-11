@@ -15,7 +15,7 @@ idx2action = []
 
 # Q-learning
 e_param0 = 1.0
-e_param_decay = 0.01
+e_param_decay = 0.05
 
 learning_rate0 = 0.95
 learning_rate_decay = 0.05
@@ -121,21 +121,22 @@ def set_reward():
 
     conv_id = request.args.get('conv_id')
     dimension = request.args.get('dimension')
-    reward = request.args.get('reward')
+    reward = float(request.args.get('reward'))
 
-    print("Conv id"+str(conv_id))
-    print("Dimension:"+str(dimension))
-    print("Reward:"+str(reward))
+    print("  Conv id"+str(conv_id))
+    print("  Dimension:"+str(dimension))
+    print("  Reward:"+str(reward))
 
     with app.app_context():
-        print("Current e-param:", current_app.e_param)
+        print("  Current e-param:", current_app.e_param)
 
         current_app.learning_rate = learning_rate0 / (1 + current_app.iteration * learning_rate_decay)
         print("  Learning rate:", current_app.learning_rate)
 
         # loop through the history of transitions to this point
+        print("  Looping through past transitions...")
         for t in current_app.transition_history:
-            print("  T -> ("+str(idx2state[t[0]])+", "+str(idx2action[t[1]])+", ", end='')
+            print("    T -> ("+str(idx2state[t[0]])+", "+str(idx2action[t[1]])+", ", end='')
             next_state = t[2]
             if next_state == None:
                 next_state = "END"
@@ -143,11 +144,26 @@ def set_reward():
                 next_state = idx2state[next_state]
 
             print(str(next_state+")"))
-            
-            #print("  Q[s,a]:", current_app.Q[s, a])
-            #print("  np.max(Q[sp]):", np.max(current_app.Q[sp]))
 
+            # Reward component for source state
+            s_reward = current_app.Q[t[0], t[1]]
+            print("    Q["+str(idx2state[t[0]])+","+str(idx2action[t[1]])+"]:", s_reward)
 
+            # Discounter reward for future states
+            f_reward = 0 # reward is 0 for everything after the end state
+            if next_state != "END":
+                f_reward = np.max(current_app.Q[t[2]])
+
+            print("    np.max(Q["+str(next_state)+"]):", f_reward)
+
+            print("TYpe of reward:", type(reward))
+
+            current_app.Q[t[0], t[1]] = (1 - current_app.learning_rate) * s_reward + current_app.learning_rate * (reward + gamma*f_reward)
+            q_update = current_app.Q[t[0], t[1]]
+            print("    Updated quality in state: "+str(q_update))
+
+        # Reset transition history in preparation for future episode
+        current_app.transition_history = []
 
         json_resp = json.dumps({'status': 'OK', 
                                 'message':''})
@@ -156,13 +172,30 @@ def set_reward():
 
 @app.route('/getQTable')
 def get_q_table():
-    print('returning Q table:')
+    #print('returning Q table:')
 
     with app.app_context():
         # within this block, current_app points to app.
-        print("App name:",current_app.name)
-        print("Q:",current_app.Q)
-        print("ET:",current_app.ET)
+        #print("App name:",current_app.name)
+        #print("Q:",current_app.Q)
+        #print("ET:",current_app.ET)
+
+        #print("Construct Full Q table:")
+        full_q_table = {}
+        for s_id in range(len(current_app.Q)):
+            #print("s_id:"+str(s_id))
+            state_spec = {}
+            for a_id in range(len(current_app.Q[s_id])):
+                eval_dims = {}
+                # Ideally loop through evaluation dimensions
+                eval_dims['q-value'] = current_app.Q[s_id, a_id]
+                eval_dims['count'] = str(current_app.ET[s_id, a_id])
+
+                state_spec[idx2action[a_id]] = eval_dims
+                print("["+str(idx2state[s_id])+", "+str(idx2action[a_id])+"]:"+str(current_app.Q[s_id,a_id]))
+            full_q_table[idx2state[s_id]] = state_spec
+        
+        #print("Full Q table:", full_q_table)
 
         #for a in range(Q.shape[1]):
         #    print("\t"+str(idx2action[a]), end='')
@@ -177,7 +210,8 @@ def get_q_table():
         json_resp = json.dumps({ 
             'status': 'OK', 'message':'', 
             'q-table': current_app.Q.tolist(),
-            'et-table': current_app.ET.tolist()
+            'full-q-table': full_q_table,
+            'et-table': current_app.ET.tolist(),
         })
 
     return make_response(json_resp, 200, {"content_type":"application/json"})
@@ -213,6 +247,7 @@ def init_q_table():
         for action in state['actions_in_state']:
             a_idx = getActionIndex(action)
             actions_in_states[s_idx].append(a_idx)
+            actions_in_states[s_idx].sort()
 
     print("Actions in states:"+str(actions_in_states))
 
@@ -259,10 +294,10 @@ def select_rl_action():
 
     with app.app_context():
         # within this block, current_app points to app.
-        print("Iterations:",current_app.iteration)
+        print("  Iterations:",current_app.iteration)
 
         s_idx = getStateIndex(state)
-        print("  State:", s_idx, ", State abbr:"+str(state['utterance_id'])+"_"+str(state['answer_id']))
+        print("  State idx:", s_idx, ", State abbr:"+str(state['utterance_id'])+"_"+str(state['answer_id']))
 
         # update final state for previous transition
         if len(current_app.transition_history) > 0:
@@ -278,13 +313,17 @@ def select_rl_action():
         
         if rnd<e_param: # be random
             print("  ET:",current_app.ET[s_idx], ", softmax:",(1.0-softmax(current_app.ET[s_idx])))
-            print("  Actions available:"+str(current_app.actions_in_states[s_idx]))
+            print("  Actions available: ", end='')
+            for act_id in current_app.actions_in_states[s_idx]:
+                print(str(idx2action[act_id])+"("+str(act_id)+")", end=' ')
+            print("")
+
             action_id = np.random.choice(current_app.actions_in_states[s_idx], 
                                          p=(1.0-softmax(current_app.ET[s_idx]))) # choose an action (randomly)
-            print("  Random action chosen:", action_id)
+            print("  Random action chosen:", idx2action[action_id]+"("+str(action_id)+")" )
         else: # be greedy
             action_id = np.argmax(current_app.Q, axis=1)[s_idx]
-            print("  Greedy action chosen:", action_id)
+            print("  Greedy action chosen:", idx2action[action_id]+"("+str(action_id)+")" )
 
         #register this state and action in transition history, leave next state empty
         current_app.transition_history.append([s_idx, action_id, None])

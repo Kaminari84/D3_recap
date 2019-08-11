@@ -290,7 +290,7 @@
     <!-- Page Content  -->
     <div class="container" style="max-width: 100%">
         <div class="row">
-            <div class="col-sm-1">
+            <div class="col-sm-2">
                 <div style="border: 1px solid red">
                     Log of conversations: <br />
                     <div id="conv_log">
@@ -298,7 +298,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-8">
+            <div class="col-sm-7">
                 <div class="botui-app-container" id="hello-world">
                     <button id="start_button" type="button" onclick="return restartDialogue();">Restart dialogue</button>	 
                     <bot-ui></bot-ui>
@@ -308,6 +308,7 @@
                 <div style="border: 1px solid red">
                     Conversation Diagnostics
                     <div id="q-table"></div>
+                    
                     
                     Behavior (reactions): <br />
                     <div id="e-param-label"></div>
@@ -339,7 +340,8 @@
     <script>
         var dialogue_position = 0;
         var conversation_uuid = guid(); // Unique identifier of this conversation - for logging
-	    var latest_answer = "Default";
+	    var conv_count = 0;
+        var latest_answer = "Default";
         var wasReaction = false;
         var selected_reaction_class = "";
 
@@ -350,28 +352,23 @@
                 type: "Options",
                 options: [ 
                     {value: "Yes", text: "Yes" },
-                    {value: "No", text: "No" },
-                    {value: "Somewhat", text: "Somewhat"} 
+                    {value: "No", text: "No" }
                 ],
 				reactions: {
 				    Yes: {
-                        emph: { text: "That's good."}, 
-                        rude: { text: "I envy you."}
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad"}
                     },
                     No: {
-                        emph: { text: "That's bad."}, 
-                        rude: { text: "I am glad."}
-                    },
-                    Somewhat: {
-                        emph: { text: "Can I help?"},
-                        rude: { text: "Hope it will get even worse"}
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad."}
                     }
                 }	 
             },
 
             {   
                 id: "Q2",
-                text: "Do you feel safe?", 
+                text: "Do you currently feel unsafe?", 
                 type: "Options",
                 options: [ 
                     {value: "Yes", text : "Yes" },
@@ -379,12 +376,32 @@
                 ],
 				reactions: {
 				    Yes: {
-                        emph: { text: "That's reassuring"}, 
-                        rude: { text: "I don't, I am jelly."}
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad."}
                     },
                     No: {
-                        emph: { text: "Sounds stressful."},
-                        rude: { text: "It makes me happy"}
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad."}
+                    }
+                }	 
+            },
+
+            {   
+                id: "Q3",
+                text: "Are you happy with the dialogue?", 
+                type: "Options",
+                options: [ 
+                    {value: "Yes", text : "Yes" },
+                    {value: "No", text : "No" } 
+                ],
+				reactions: {
+				    Yes: {
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad."}
+                    },
+                    No: {
+                        pos: { text: "That's good."}, 
+                        neg: { text: "That's bad."}
                     }
                 }	 
             },
@@ -404,6 +421,8 @@
         ];
         
         var botui = new BotUI('hello-world');
+        var Q_table = {};
+        var current_state = {};
         var states = [];
         var actions = {};
         //var actions_in_states = [];
@@ -485,8 +504,7 @@
         }
 
         function getQValueTable() {
-            console.log("Requesting Q value table...");
-            console.log("AJAX request - register states & actions:");
+            console.log("Getting Q value table...");
             var request = $.ajax({
                 url: "/getQTable",
                 type: "GET",
@@ -502,7 +520,9 @@
                     console.log("Response status: "+obj.status);
                     if (obj.status == "OK") {
                         console.log("Call status OK!");
-                        renderQTable(obj['q-table'], obj['et-table']);
+                        //Store in global variable
+                        Q_table = obj['full-q-table'];
+                        renderQTable(obj['full-q-table']);
                     } else {
                         console.log("Error:"+obj.message);
                     }
@@ -510,19 +530,76 @@
             });
         }
 
-        function renderQTable(q_table, et_table) {
-            console.log("Got Q table argument...");
+        //Turn state definition into unique sticker label
+        function state2lbl(state) {
+            return state.utterance_id+"_"+state.answer_id;
+        }
+
+        function action2lbl(action) {
+            console.log("Action2Lbl - action object:");
+            console.log(action)
+            return action.action_class;
+        }
+
+        function renderQTable(q_table) {
+            console.log("Got Full Q table argument...");
             console.log("Q-table:");
             console.log(q_table)
-            console.log("ET-table:");
-            console.log(et_table)
 
             var qt = document.getElementById("q-table");
-            qt.innerHTML = "Got table!";
+            qt.innerHTML = ""; //need to reset the contents
+            var table = document.createElement("div");
+            table.className = "container";
+            table.style.maxWidth = "100%";
+            table.style.fontSize = "80%";
+
+            //Headers for actions
+            var div_size = 12/(size_dict(actions)+1);
+            var row = document.createElement("div");
+            row.className = "row"
+            
+            var col = document.createElement("div");
+            col.className = "col-sm-"+div_size;
+            col.style.border = "1px solid black";
+            row.appendChild(col);
+            
+            for (action in actions) {
+                var col = document.createElement("div");
+                col.className = "col-sm-"+div_size;
+                col.style.border = "1px solid black";
+                col.innerHTML = "<b>"+actions[action].action_class+"</b>";
+                row.appendChild(col);
+            }
+            table.appendChild(row);
+
             for (var state=0; state<states.length; state++) {
+                var row = document.createElement("div");
+                row.className = "row"
+
+                var col = document.createElement("div");
+                col.className = "col-sm-"+div_size;
+                col.style.border = "1px solid black";
+                col.innerHTML = "<b>"+states[state].utterance_id+"-"+states[state].answer_text+"</b>";
+                row.appendChild(col);
+                
                 var act_n = 0;
+
                 for (action in actions) {
-                    var entry = document.createElement('div');
+
+                    state_lbl = state2lbl(states[state]);
+                    console.log('State label:'+state_lbl);
+                    action_lbl = action2lbl(actions[action])
+                    console.log("Action label:"+action_lbl);
+                    console.log("State actions:"+q_table[state_lbl]);
+                    console.log("Action value:"+q_table[state_lbl][action_lbl]);
+
+                    var col = document.createElement("div");
+                    col.className = "col-sm-"+div_size;
+                    col.style.border = "1px solid black";
+                    col.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+", "+q_table[state_lbl][action_lbl]['count'];
+                    row.appendChild(col);
+
+                    /*var entry = document.createElement('div');
                     
                     var state_elem = document.createElement('span');
                     state_elem.innerHTML = "<b>"+states[state].utterance_id+"-"+states[state].answer_text+" -- </b>";
@@ -538,17 +615,28 @@
                     //console.log("Len actions:"+size_dict(actions))
                     //var idx = state*size_dict(actions)+act_n;
                     //console.log("IDX:"+idx);
-                    q_elem.innerHTML = q_table[state][act_n]+", "+et_table[state][act_n];
+                    state_lbl = state2lbl(states[state]);
+                    console.log('State label:'+state_lbl);
+                    action_lbl = action2lbl(actions[action])
+                    console.log("Action label:"+action_lbl);
+                    console.log("State actions:"+q_table[state_lbl]);
+                    console.log("Action value:"+q_table[state_lbl][action_lbl]);
+
+                    q_elem.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+", "+q_table[state_lbl][action_lbl]['count'];
 
                     entry.appendChild(state_elem);
                     entry.appendChild(action_elem);
                     entry.appendChild(q_elem);
 
-                    qt.appendChild(entry);
+                    qt.appendChild(entry);*/
                     act_n += 1;
 
                 }
+                table.appendChild(row);
             }
+
+            qt.appendChild(table);
+            
 
         }
 
@@ -558,20 +646,21 @@
         
             for (var dp=0; dp<dialogue.length; dp++) {
                 if (dialogue[dp]['type'] == "Options") {
-                    answers = [];
+                    /*answers = [];
                     for (opt_n in dialogue[dp]['options']) {
                         console.log("Option:"+dialogue[dp]['options'][opt_n]);
-                        answers.push(dialogue[dp]['options'][opt_n]['value']);
-                    }
+                        answers.push([dialogue[dp]['options'][opt_n]['value'],
+                                     dialogue[dp]['options'][opt_n]['value']]);
+                    }*/
 
                     //States
-                    for (var ans=0; ans<answers.length; ans++) {
+                    for (opt_n in dialogue[dp]['options']) {
                         state_params = {
                             'dialog_position': dp,
                             'utterance_id': dialogue[dp]['id'],
                             'utterance_text': dialogue[dp]['text'],
-                            'answer_id': ans,
-                            'answer_text': answers[ans],
+                            'answer_id': dialogue[dp]['options'][opt_n]['value'],
+                            'answer_text': dialogue[dp]['options'][opt_n]['text'],
                             'actions_in_state': []
                         }
 
@@ -700,7 +789,7 @@
                 // the data needs to be a properly formatted JSON, otherwise the server will complain
                 data: { conv_id: conversation_uuid, 
                         dimension: dimension, 
-                        reward: reward 
+                        reward: parseFloat(reward) 
                     },
                 dataType: "html",
                 async: true, 
@@ -739,6 +828,33 @@
             //Handing an immediate reaction to a response
             if (isReaction == true) {
                 responseType = "Reaction"; //This is a reaction, change a response type for question
+                
+                //Get the prbabilities for current state
+                state_lbl = state2lbl(current_state);
+                console.log("****Current state label:"+state_lbl);
+                sum_exp = 0;
+                for (act_lbl in Q_table[state_lbl]) {
+                    console.log("Act Lbl:");
+                    console.log(act_lbl);
+                    console.log("Q-val:");
+                    console.log(Q_table[state_lbl][act_lbl])
+                    sum_exp += Math.exp(Q_table[state_lbl][act_lbl]['q-value'])
+                }
+
+                //Add the probabilities into dialogue
+                var msg_elem = document.getElementsByClassName("botui-messages-container");
+                var prob_elem = document.createElement("div");
+                prob_elem.style.backgroundColor = "#eeeeff";
+                prob_elem.style.padding = "5px 10px";
+                prob_text = "";
+                for (act_lbl in Q_table[state_lbl]) {
+                    prob_text += ""+act_lbl+": "+((Math.exp(Q_table[state_lbl][act_lbl]['q-value'])/sum_exp)*100).toFixed(0)+"% | "
+                }
+                prob_text = prob_text.substring(0, prob_text.length-2)
+
+                prob_elem.innerHTML = prob_text;
+                msg_elem[0].appendChild(prob_elem);
+
                 if (latest_answer in dialogue[givenPosition]["reactions"]) {
                     msg_spec['content'] = dialogue[givenPosition]["reactions"][latest_answer][selected_reaction_class]['text'];
                 } else {
@@ -757,7 +873,7 @@
             botui.message.add(msg_spec).then(function (index) {
                 switch (responseType) {
                     case "Reaction": 
-                        console.log("Reaction...");	
+                        console.log("Reaction..."); 	
                         dialogue_position += 1;
                         progressDialogue();
                         break;
@@ -815,24 +931,28 @@
                                 if (latest_answer in dialogue[givenPosition]["reactions"]) {
                                     console.log("Response has a reaction ***!!!");
                                     //Call the Q-learning to get Reward estimate
-                                    answers = [];
+                                    /*answers = [];
                                     for (opt_n in dialogue[givenPosition]['options']) {
                                         console.log("Option:"+dialogue[givenPosition]['options'][opt_n]);
                                         answers.push(dialogue[givenPosition]['options'][opt_n]['value']);
                                     }
 
-                                    console.log("Answers:"+answers);
+                                    console.log("Answers:"+answers);*/
 
                                     state = {   
                                         'dialogue_position': givenPosition,
                                         'utterance_id': dialogue[givenPosition]['id'],
+                                        'utterance_text': dialogue[givenPosition]['text'],
                                         'latest_utterance': msg_spec['content'],
-                                        'answer_id': answers.indexOf(latest_answer),
-                                        'answer_option': latest_answer
+                                        'answer_id': latest_answer,
+                                        'answer_text': ''
                                     }
                                     reactions = {
                                         'reaction_list': dialogue[givenPosition]["reactions"][latest_answer]
                                     }
+
+                                    //save current state in global variable
+                                    current_state = state;
 
                                     selectReaction(state, reactions);
                                     isProgressDialogue = false;
@@ -855,9 +975,10 @@
 
             //Not the first time, some dialogues were completed
             if (dialogue_position > 0) {
+                conv_count +=1;
                 var e = document.getElementById("conv_log");
                 var conv_label = document.createElement("div");
-                conv_label.innerHTML = "Conv #1";
+                conv_label.innerHTML = "C#"+conv_count;
                 conv_label.style = "border: 1px solid black";
 
                 e.appendChild(conv_label);
