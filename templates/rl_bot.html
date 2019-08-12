@@ -343,7 +343,8 @@
 	    var conv_count = 0;
         var latest_answer = "Default";
         var wasReaction = false;
-        var selected_reaction_class = "";
+        var selected_reaction_class = ""; // What reaction has been selected by RL
+        var selected_reaction_choice = ""; // How was this reacton selected (Random or Greedy)
 
         var dialogue = [ 
             {   
@@ -741,6 +742,7 @@
                     if (obj.status == "OK") {
                         console.log("Selected action class:"+obj.action_class)
                         selected_reaction_class = obj.action_class;
+                        selected_reaction_source = obj.action_source;
                         progressDialogue(dialogue_position, true);
                         getEparam();
                         getQValueTable();
@@ -819,9 +821,11 @@
                 prob_elem.style.padding = "5px 10px";
                 prob_text = "";
                 for (act_lbl in Q_table[state_lbl]) {
-                    prob_text += ""+act_lbl+": "+((Math.exp(Q_table[state_lbl][act_lbl]['q-value'])/sum_exp)*100).toFixed(0)+"% | "
+                    prob_text += ""+act_lbl+": ";
+                    prob_text += ((Math.exp(Q_table[state_lbl][act_lbl]['q-value'])/sum_exp)*100).toFixed(0)+"% | "
                 }
-                prob_text = prob_text.substring(0, prob_text.length-2)
+                prob_text = prob_text.substring(0, prob_text.length-2);
+                prob_text += " ("+selected_reaction_source+")";
 
                 prob_elem.innerHTML = prob_text;
                 msg_elem[0].appendChild(prob_elem);

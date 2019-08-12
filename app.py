@@ -280,9 +280,9 @@ def init_q_table():
 @app.route('/selectRLAction')
 def select_rl_action():
     print("Called select RL Action on server...")
-    conv_id = request.args.get('conv_id')
+    #conv_id = request.args.get('conv_id')
     state = json.loads(request.args.get('state'))
-    actions = json.loads(request.args.get('actions'))
+    #actions = json.loads(request.args.get('actions'))
 
     #print("Conv id"+str(conv_id))
     print("State:"+str(state))
@@ -340,7 +340,9 @@ def select_rl_action():
 
     print("Action ID: "+str(action_id), ", type:"+idx2action[action_id])
 
-    json_resp = json.dumps({ 'status': 'OK', 'message':'', 'action_class': str(idx2action[action_id]) })
+    json_resp = json.dumps({ 'status': 'OK', 'message':'', 
+                             'action_class': str(idx2action[action_id]),
+                             'action_source': str("Random" if isRandom else "Greedy") })
 
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
