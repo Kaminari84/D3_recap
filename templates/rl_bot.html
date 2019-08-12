@@ -309,8 +309,8 @@
                 </div>
             </div>
             <div class="col-sm-3">
-                <div style="border: 1px solid red">
-                    <div class="mt-3"><b>Reaction Learning:</b> </div>
+                <div style="border: 0px solid red">
+                    <div class="mb-1"><b>Reaction Learning:</b> </div>
                     <div id="q-table"></div>
 
                     <div class="mt-3"><b>Performance over time:</b> </div>
@@ -465,28 +465,120 @@
             drawPerfPlot();
         });
 
-        function drawPerfPlot() {
+        function getRewardHistory() {
+            console.log("Getting the reward history...");
+
+            var request = $.ajax({
+                url: "/getRewardHistory",
+                type: "GET",
+                // the data needs to be a properly formatted JSON, otherwise the server will complain
+                data: { conv_id: conversation_uuid },
+                dataType: "html",
+                async: true, 
+                success : function (msg)
+                {
+                    console.log("Called getRewardHistory successfully!");
+                    var obj = JSON.parse(msg);
+                    //check server response, it should have status="OK", otherwise it will be status="error" and a message with error description
+                    console.log("Response status: "+obj.status);
+                    if (obj.status == "OK") {
+                        console.log("Call status OK!");
+                        drawPerfPlot(obj.reward_history);
+                    } else {
+                        console.log("Error:"+obj.message);
+                    }
+                }
+            });
+        }
+
+        function drawPerfPlot(data = null) {
+            console.log("Drwaing performance plot...")
+            console.log("Got reward history data:");
+            console.log(data);
+
             plot_elem = document.getElementById('perf-plot');
             
+            var x_full = []; //[1, 2, 3, 4, 5];
+            var y_full = []; //[0.5, 1, 2, 3, 5];
+                   
+            var x_greedy = []; //[1, 2, 3, 4, 5];
+            var y_greedy = []; //[1, 2, 4, 8, 16];
+            
+            if (data != null) {
+                x_full = [];
+                y_full = [];
+                
+                x_greedy = [];
+                y_greedy = [];
+
+                for (var ep_n=0; ep_n<data.length; ep_n++) {
+                    entry = data[ep_n];
+
+                    y_full.push(entry[1] + 4);
+                    x_full.push(ep_n);
+
+                    //All Greedy Episode
+                    if (entry[0] == 1) {
+                        y_greedy.push(entry[1] + 4);
+                        x_greedy.push(ep_n);
+                    } 
+                } 
+            }
+
             var full_perf = {
-                x: [1, 2, 3, 4, 5],
-                y: [0.5, 1, 2, 3, 5],
+                x: x_full,
+                y: y_full,
                 mode: 'lines+markers',
-                name: 'GP'
+                name: 'greedy'
             };
 
             var greedy_perf = {
-                x: [1, 2, 3, 4, 5],
-                y: [1, 2, 4, 8, 16],
+                x: x_greedy,
+                y: y_greedy,
                 mode: 'lines+markers',
-                name: 'FP'
+                name: 'mixed'
             };
 
             var data = [ full_perf, greedy_perf ];
+
             var layout = {
                     showlegend: "True",
+
+                    xaxis: {
+                        showticklabels: true,
+                        autotick: false,
+                        ticks: 'outside',
+                        tick0: 0,
+                        dtick: 1,
+                        ticklen: 0,
+                        tickwidth: 0,
+                        tickcolor: '#000',
+                        tickangle: 'auto',
+                        tickfont: {
+                            family: 'Old Standard TT, serif',
+                            size: 10,
+                            color: 'black'
+                        },
+                    },
+                    yaxis: {
+                        range: [0, 10.5],
+                        showticklabels: true,
+                        autotick: false,
+                        ticks: 'outside',
+                        tick0: 0,
+                        dtick: 1,
+                        ticklen: 0,
+                        tickwidth: 0,
+                        tickcolor: '#000',
+                        tickangle: 'auto',
+                        tickfont: {
+                            family: 'Old Standard TT, serif',
+                            size: 12,
+                            color: 'black'
+                        },
+                    },
                     legend: { x:0, y:1 },
-                    margin: { l:0, r:0, b:0, t:0, pad:4 } 
+                    margin: { l:20, r:0, b:20, t:10, pad:0 } 
                 } 
             
             Plotly.newPlot( plot_elem, data, layout);
@@ -609,13 +701,14 @@
             
             var col = document.createElement("div");
             col.className = "col-sm-"+div_size;
-            col.style.border = "1px solid black";
+            col.style.border = "0px solid #ffffff";
             row.appendChild(col);
             
             for (action in actions) {
                 var col = document.createElement("div");
                 col.className = "col-sm-"+div_size;
-                col.style.border = "1px solid black";
+                col.style.border = "1px solid #eeeeee";
+                col.style.backgroundColor = '#eeeeee';
                 col.innerHTML = "<b>"+actions[action].action_class+"</b>";
                 row.appendChild(col);
             }
@@ -627,7 +720,8 @@
 
                 var col = document.createElement("div");
                 col.className = "col-sm-"+div_size;
-                col.style.border = "1px solid black";
+                col.style.border = "1px solid #eeeeee";
+                col.style.backgroundColor = '#eeeeee';
                 col.innerHTML = "<b>"+states[state].utterance_id+"-"+states[state].answer_text+"</b>";
                 row.appendChild(col);
                 
@@ -644,7 +738,8 @@
 
                     var col = document.createElement("div");
                     col.className = "col-sm-"+div_size;
-                    col.style.border = "1px solid black";
+                    col.style.border = "0.5px solid #999999";
+                    //col.style.backgroundColor = 'rgb('+;
                     col.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+" ("+q_table[state_lbl][action_lbl]['count']+","+q_table[state_lbl][action_lbl]['r-count']+")";
                     row.appendChild(col);
 
@@ -823,6 +918,9 @@
                     if (obj.status == "OK") {
                         console.log("Reward registered!");
                         getQValueTable();
+
+                        //Draw the performance plot
+                        getRewardHistory();
                     } else {
                         console.log("Error:"+obj.message);
                     }

@@ -49,6 +49,7 @@ def setup_app(app):
         current_app.e_param = 1.0
         current_app.learning_rate = 1.0
         current_app.transition_history = []
+        current_app.reward_history = []
 
     print("Start the actual server...")
 
@@ -102,6 +103,16 @@ def get_e_param():
     
     return make_response(json_resp, 200, {"content_type":"application/json"})
 
+@app.route('/getRewardHistory')
+def get_reward_history():
+    print("Getting the reward history...")
+    with app.app_context():
+        json_resp = json.dumps({'status': 'OK', 
+                                'message':'', 
+                                'reward_history': current_app.reward_history})
+    
+    return make_response(json_resp, 200, {"content_type":"application/json"})                      
+
 @app.route('/setEParam')
 def set_e_param():
     print('setting E param:')
@@ -136,8 +147,13 @@ def set_reward():
 
         # loop through the history of transitions to this point
         print("  Looping through past transitions...")
+        allGreedy = True # Keep track if all the transitions in the episode were greedy (optimal)
         for t in current_app.transition_history:
-            print("    T -> ("+str(idx2state[t[0]])+", "+str(idx2action[t[1]])+", ", end='')
+            print("    T -> ("+str('Random' if t[3] else 'Greedy')+", "+str(idx2state[t[0]])+", "+str(idx2action[t[1]])+", ", end='')
+            # Not all transitions were greedy in this episode
+            if t[3]:
+                allGreedy = False
+
             next_state = t[2]
             if next_state == None:
                 next_state = "END"
@@ -157,14 +173,19 @@ def set_reward():
 
             print("    np.max(Q["+str(next_state)+"]):", f_reward)
 
-            print("TYpe of reward:", type(reward))
-
             current_app.Q[t[0], t[1]] = (1 - current_app.learning_rate) * s_reward + current_app.learning_rate * (reward + gamma*f_reward)
             q_update = current_app.Q[t[0], t[1]]
             print("    Updated quality in state: "+str(q_update))
 
         # Reset transition history in preparation for future episode
         current_app.transition_history = []
+        if allGreedy:
+            print("  All GREEDY episode")
+        else:
+            print("  Mixed RANDOM-GREEDY episode")
+        
+        reward_entry = [1 if allGreedy else 0, reward]
+        current_app.reward_history.append(reward_entry)
 
         json_resp = json.dumps({'status': 'OK', 
                                 'message':''})
@@ -330,7 +351,7 @@ def select_rl_action():
             print("  Greedy action chosen:", idx2action[action_id]+"("+str(action_id)+")" )
 
         #register this state and action in transition history, leave next state empty
-        current_app.transition_history.append([s_idx, action_id, None])
+        current_app.transition_history.append([s_idx, action_id, None, isRandom])
 
         current_app.ET[s_idx, action_id] += 1
         if isRandom:
