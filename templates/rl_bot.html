@@ -715,6 +715,9 @@
             table.appendChild(row);
 
             for (var state=0; state<states.length; state++) {
+                state_lbl = state2lbl(states[state]);
+                console.log('State label:'+state_lbl);
+
                 var row = document.createElement("div");
                 row.className = "row"
 
@@ -727,20 +730,28 @@
                 
                 var act_n = 0;
 
+                // Calc the mean exp of Q-values
+                sum_exp = 0;
+                for (action in actions) {
+                    action_lbl = action2lbl(actions[action]);
+                    sum_exp += Math.exp(q_table[state_lbl][action_lbl]['q-value']);
+                } 
+
                 for (action in actions) {
 
-                    state_lbl = state2lbl(states[state]);
-                    console.log('State label:'+state_lbl);
+                    
                     action_lbl = action2lbl(actions[action])
                     console.log("Action label:"+action_lbl);
                     console.log("State actions:"+q_table[state_lbl]);
                     console.log("Action value:"+q_table[state_lbl][action_lbl]);
 
+                    var norm_q_val= (Math.exp(q_table[state_lbl][action_lbl]['q-value'])*100/sum_exp);
+
                     var col = document.createElement("div");
                     col.className = "col-sm-"+div_size;
                     col.style.border = "0.5px solid #999999";
-                    //col.style.backgroundColor = 'rgb('+;
-                    col.innerHTML = q_table[state_lbl][action_lbl]['q-value'].toFixed(2)+" ("+q_table[state_lbl][action_lbl]['count']+","+q_table[state_lbl][action_lbl]['r-count']+")";
+                    //col.style.backgroundColor = 'rgb('+(255-norm_q_val)+','+(255-norm_q_val)+','+255+')';
+                    col.innerHTML = norm_q_val.toFixed(0)+"%<br/> ("+q_table[state_lbl][action_lbl]['count']+","+q_table[state_lbl][action_lbl]['r-count']+")";
                     row.appendChild(col);
 
                     
@@ -956,8 +967,8 @@
                     console.log("Act Lbl:");
                     console.log(act_lbl);
                     console.log("Q-val:");
-                    console.log(Q_table[state_lbl][act_lbl])
-                    sum_exp += Math.exp(Q_table[state_lbl][act_lbl]['q-value'])
+                    console.log(Q_table[state_lbl][act_lbl]);
+                    sum_exp += Math.exp(Q_table[state_lbl][act_lbl]['q-value']);
                 }
 
                 //Add the probabilities into dialogue
