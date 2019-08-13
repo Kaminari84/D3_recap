@@ -750,7 +750,7 @@
                     var col = document.createElement("div");
                     col.className = "col-sm-"+div_size;
                     col.style.border = "0.5px solid #999999";
-                    //col.style.backgroundColor = 'rgb('+(255-norm_q_val)+','+(255-norm_q_val)+','+255+')';
+                    col.style.backgroundColor = 'rgb('+(255-norm_q_val)+','+(255-norm_q_val)+','+255+')';
                     col.innerHTML = norm_q_val.toFixed(0)+"%<br/> ("+q_table[state_lbl][action_lbl]['count']+","+q_table[state_lbl][action_lbl]['r-count']+")";
                     row.appendChild(col);
 
