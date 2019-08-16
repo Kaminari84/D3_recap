@@ -7,6 +7,30 @@
         <title>Show APPL</title>
         <script src="https://d3js.org/d3.v5.min.js"></script>
 
+        <style type="text/css">
+            /* 13. Basic Styling with CSS */
+            
+            /* Style the lines by removing the fill and applying a stroke */
+            .line {
+                fill: none;
+                stroke: #333333;
+                stroke-width: 1;
+            }
+
+            .lineSel {
+                fill: none;
+                stroke: #ff3333;
+                stroke-width: 3;
+            }
+            
+            /* Style the dots by assigning a fill and stroke */
+            .dot {
+                fill: #ff5500;
+
+            }
+            
+        </style>
+
         <!--SCRIPT-->
         <script>
 
@@ -74,10 +98,46 @@
             
                 var lineGraph = svgContainer.append("path")
                             .datum(ttData)
+                            .attr("class", "line")
                             .attr("d", line(ttData))
                             .attr("stroke", "blue")
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
+
+                //Dots on chart - https://bl.ocks.org/pstuffa/26363646c478b2028d36e7274cedefa6
+                var dataDots = svgContainer.selectAll(".dot")
+                            .data(ttData)
+                        .enter().append("circle")
+                            .attr("class", "dot")
+                            .attr("cx", function(d) { return x(d.date) })
+                            .attr("cy", function(d) { return y(d.close) })
+                            .attr("r", 1)
+                            .on("click", function (d) {
+                                console.log("Clicked:"+d.date+"("+x(d.date)+") -> "+d.close+"("+y(d.close)+")");
+                                var baseDate = new Date(d.date);
+                                var tempData = [];
+
+                                for (var i = 1; i<20; i++) {
+                                    tempData.push( {"date":new Date(baseDate.setDate(baseDate.getDate()+i)), 
+                                                    "i":i, 
+                                                    "close": d.close+i } );
+                                }
+
+                                console.log("Tempt Data:");
+                                for (id in tempData) {
+                                    console.log(tempData[id].date+" -> "+tempData[id].close);
+                                }
+                                
+                                svgContainer.append("path")
+                                    .datum(tempData)
+                                    .attr("class", "lineSel")
+                                    .attr("d", line(tempData))
+                                    .attr("stroke", "blue")
+                                    .attr("stroke-width", 2)
+                                    .attr("fill", "none");       
+
+                                d3.event.stopPropagation();
+                            })
             });
 
         </script>
@@ -97,11 +157,7 @@
                 </div> 
                 
                 {% endfor %}
-            </div>
-
-
-            
-            
+            </div>            
         </center>
     </body>
 </html>
