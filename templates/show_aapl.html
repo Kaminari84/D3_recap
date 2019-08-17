@@ -25,9 +25,16 @@
             
             /* Style the dots by assigning a fill and stroke */
             .dot {
-                fill: #ff5500;
+                fill: #000000;
 
             }
+
+            /* Style the dots by assigning a fill and stroke */
+            .dotSel {
+                fill: #5555ff;
+
+            }
+
 
             /* Tooltip style when clicking mouse over on the data point */
             .tooltip {
@@ -156,6 +163,7 @@
                                 
                                 //hiding previous
                                 d3.select("path.lineSel").remove();
+                                d3.selectAll("circle.dotSel").remove();
                                 
                                 var baseDate = new Date(d.date);
                                 var tempData = [];
@@ -171,13 +179,23 @@
                                     console.log(tempData[id].date+" -> "+tempData[id].close);
                                 }
                                 
+                                // Add prediction line
                                 svgContainer.append("path")
                                     .datum(tempData)
                                     .attr("class", "lineSel")
                                     .attr("d", line(tempData))
                                     .attr("stroke", "blue")
                                     .attr("stroke-width", 2)
-                                    .attr("fill", "none");       
+                                    .attr("fill", "none"); 
+
+                                // Add data point dots
+                                svgContainer.selectAll(".dotSel")
+                                        .data(tempData)
+                                    .enter().append("circle")
+                                        .attr("class", "dotSel")
+                                        .attr("cx", function(d) { return x(d.date) })
+                                        .attr("cy", function(d) { return y(d.close) })
+                                        .attr("r", 2)
 
                                 d3.event.stopPropagation();
                             })
