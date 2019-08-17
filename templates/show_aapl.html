@@ -123,7 +123,7 @@
                 // tooltip mouseover event handler
                 var tipMouseover = function(d) {
                     //var color = colorScale(d.manufacturer);
-                    var html  = d.close + "<br/>" + d.date;
+                    var html  = d.close + "<br/>" + d.date.toDateString();
 
                     tooltip.html(html)
                         .style("left", (d3.event.pageX + 15) + "px")
