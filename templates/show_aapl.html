@@ -114,6 +114,10 @@
                             .attr("r", 1)
                             .on("click", function (d) {
                                 console.log("Clicked:"+d.date+"("+x(d.date)+") -> "+d.close+"("+y(d.close)+")");
+                                
+                                //hiding previous
+                                d3.select("path.lineSel").remove();
+                                
                                 var baseDate = new Date(d.date);
                                 var tempData = [];
 
