@@ -3,6 +3,8 @@ import json
 import os
 import numpy as np
 from scipy.special import softmax
+import pandas as pd
+from datetime import datetime
 
 app = Flask(__name__)
 app.app_context().push()
@@ -406,3 +408,47 @@ def appl_test():
     return render_template('show_aapl.html',
         stock_prices = values
     )
+
+@app.route('/getStockPredictions')
+def get_stock_predictions():
+    stock_ticket = request.args.get('stock_ticket')
+    data_point = request.args.get('data_point')
+
+    print("Stock ticket:",str(stock_ticket))
+    print("Data point:", str(data_point))
+
+    point_date = datetime.strptime(data_point, "%a %b %d %Y")
+
+    print("Parsed date:", str(point_date.strftime("%d/%m/%y")))
+
+    #Temp solution - replace with persistent storage
+    f = open('AAPL.json', 'r')
+    r = json.load(f)
+    f.close()
+
+    n = 0
+    entries = {'datetime': [], 'close': []}
+    for key in sorted(r['history'].keys(), reverse=True):
+        val = r['history'][key]
+        #print("Key:",key," ,Val:",val)
+        entries['datetime'].append( key )
+        entries['close'].append( val['close'] )
+        n += 1
+        if n>1000:
+            break
+
+    df = pd.DataFrame(entries, columns=['datetime','close'])
+    df['datetime'] = pd.to_datetime(df['datetime'])
+    print(df.columns)
+    print(df.shape)
+    print(df.head(10))
+
+    # Mask - only select data points from the past from this point
+    mask = (df['datetime'] < data_point)
+    print(df.loc[mask].shape)
+    print(df.loc[mask].head(10))
+
+
+    json_resp = json.dumps({'status': 'OK', 'message':''})
+    
+    return make_response(json_resp, 200, {"content_type":"application/json"})

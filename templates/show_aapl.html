@@ -5,7 +5,10 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
         <title>Show APPL</title>
+        
         <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    
 
         <style type="text/css">
             /* 13. Basic Styling with CSS */
@@ -160,6 +163,9 @@
                             .on("click", function (d) {
                                 console.log("Clicked:"+d.date+"("+x(d.date)+") -> "+d.close+"("+y(d.close)+")");
                                 
+                                //Call server to get price prediction from this point
+                                getPredictions("AAPL", d.date);
+
                                 //hiding previous
                                 d3.select("path.lineSel").remove();
                                 d3.selectAll("circle.dotSel").remove();
@@ -201,6 +207,35 @@
                                 d3.event.stopPropagation();
                             })
             });
+
+            function getPredictions(stockTicket, dataPoint) {
+                console.log("Calling server to make prediciton for data point...");
+                console.log("Stock:"+stockTicket);
+                console.log("Data point:"+dataPoint);
+
+                var request = $.ajax({
+                    url: "/getStockPredictions",
+                    type: "GET",
+                    // the data needs to be a properly formatted JSON, otherwise the server will complain
+                    data: { stock_ticket: stockTicket,
+                            data_point: dataPoint.toDateString() },
+                    dataType: "html",
+                    async: true, 
+                    success : function (msg)
+                    {
+                        console.log("Called getPredictions successfully!");
+                        var obj = JSON.parse(msg);
+                        //check server response, it should have status="OK", otherwise it will be status="error" and a message with error description
+                        console.log("Response status: "+obj.status);
+                        if (obj.status == "OK") {
+                            console.log("Call status OK!");
+                            //drawPredictionPlot(obj.reward_history);
+                        } else {
+                            console.log("Error:"+obj.message);
+                        }
+                    }
+                });
+            }
 
         </script>
     </head>
