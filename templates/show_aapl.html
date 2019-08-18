@@ -54,6 +54,13 @@
         <!--SCRIPT-->
         <script>
 
+            var svgContainer = null;
+            var line = null;
+            var tipMouseover = null;
+            var tipMouseout = null;
+            var xScale = null;
+            var yScale = null;
+
             var ttData = [
                 {% for c in stock_prices | sort(attribute='datetime', reverse = True) %}
                     { "date":new Date("{{ c.datetime }}"), "close": {{ c.close }} },
@@ -81,26 +88,26 @@
                     width = 960 - margin.left - margin.right,
                     height = 500 - margin.top - margin.bottom;
 
-                var x = d3.scaleTime()
+                xScale = d3.scaleTime()
                     .domain([new Date(2019,6,25), new Date(2019,7,28)])
                     .range([0, width])
 
-                var y = d3.scaleLinear()
+                yScale = d3.scaleLinear()
                     .domain([0,100])
                     .range([height, 0]);
 
-                var xAxis = d3.axisBottom(x);
-                var yAxis = d3.axisLeft(y);
+                var xAxis = d3.axisBottom(xScale);
+                var yAxis = d3.axisLeft(yScale);
 
-                var line = d3.line()
-                    .x(function(d) { return x(d.date); })
-                    .y(function(d) { return y(d.close); });
+                line = d3.line()
+                    .x(function(d) { return xScale(d.date); })
+                    .y(function(d) { return yScale(d.close); });
 
-                x.domain(d3.extent(ttData, function(d) { return d.date; } ));
-                y.domain(d3.extent(ttData, function(d) { return d.close; } ));
+                xScale.domain(d3.extent(ttData, function(d) { return d.date; } ));
+                yScale.domain(d3.extent(ttData, function(d) { return d.close; } ));
 
                 //Create the SVG Viewport selection
-                var svgContainer = d3.select("#stock_plot").append("svg")
+                svgContainer = d3.select("#stock_plot").append("svg")
                                 .attr("width", width + margin.left + margin.right)
                                 .attr("height", height + margin.top + margin.bottom)
                                 .style('border','1px solid #cccccc')
@@ -131,7 +138,7 @@
                     .style("opacity", 0);
 
                 // tooltip mouseover event handler
-                var tipMouseover = function(d) {
+                tipMouseover = function(d) {
                     //var color = colorScale(d.manufacturer);
                     var html  = d.close + "<br/>" + d.date.toDateString();
 
@@ -144,7 +151,7 @@
                 };
 
                 // tooltip mouseout event handler
-                var tipMouseout = function(d) {
+                tipMouseout = function(d) {
                     tooltip.transition()
                         .duration(300) // ms
                         .style("opacity", 0); // don't care about position!
@@ -155,61 +162,66 @@
                             .data(ttData)
                         .enter().append("circle")
                             .attr("class", "dot")
-                            .attr("cx", function(d) { return x(d.date) })
-                            .attr("cy", function(d) { return y(d.close) })
+                            .attr("cx", function(d) { return xScale(d.date) })
+                            .attr("cy", function(d) { return yScale(d.close) })
                             .attr("r", 2)
                             .on("mouseover", tipMouseover)
                             .on("mouseout", tipMouseout)
                             .on("click", function (d) {
-                                console.log("Clicked:"+d.date+"("+x(d.date)+") -> "+d.close+"("+y(d.close)+")");
+                                console.log("Clicked:"+d.date+"("+xScale(d.date)+") -> "+d.close+"("+yScale(d.close)+")");
                                 
                                 //Call server to get price prediction from this point
-                                getPredictions("AAPL", d.date);
-
-                                //hiding previous
-                                d3.select("path.lineSel").remove();
-                                d3.selectAll("circle.dotSel").remove();
-                            
-                                var tempData = [];
-
-                                for (var i = 1; i<20; i++) {
-                                    var baseDate = new Date(d.date);
-                                    tempData.push( {"date":new Date(baseDate.setDate(baseDate.getDate()+i)), 
-                                                    "i":i, 
-                                                    "close": d.close+i } );
-                                }
-
-                                console.log("Tempt Data:");
-                                for (id in tempData) {
-                                    console.log(tempData[id].date+" -> "+tempData[id].close);
-                                }
-                                
-                                // Add prediction line
-                                svgContainer.append("path")
-                                    .datum(tempData)
-                                    .attr("class", "lineSel")
-                                    .attr("d", line(tempData))
-                                    .attr("stroke", "blue")
-                                    .attr("stroke-width", 2)
-                                    .attr("fill", "none"); 
-
-                                // Add data point dots
-                                svgContainer.selectAll(".dotSel")
-                                        .data(tempData)
-                                    .enter().append("circle")
-                                        .attr("class", "dotSel")
-                                        .attr("cx", function(d) { return x(d.date) })
-                                        .attr("cy", function(d) { return y(d.close) })
-                                        .attr("r", 2)
-                                        .on("mouseover", tipMouseover)
-                                        .on("mouseout", tipMouseout)
+                                getPredictions("AAPL", d.date);                         
 
                                 d3.event.stopPropagation();
                             })
             });
 
+            function renderPredictions(predictions, start_date) {
+                console.log("Rednering predictions:")
+                console.log(predictions)
+
+                //hiding previous
+                d3.select("path.lineSel").remove();
+                d3.selectAll("circle.dotSel").remove();
+                            
+                var tempData = [];
+
+                for (var i = 0; i<predictions.length; i++) {
+                    var baseDate = new Date(start_date);
+                    tempData.push( {"date":new Date(baseDate.setDate(baseDate.getDate()+i)), 
+                                    "i":i, 
+                                    "close": predictions[i] } );
+                }
+
+                console.log("Tempt Data:");
+                for (id in tempData) {
+                    console.log(tempData[id].date+" -> "+tempData[id].close);
+                }
+                                
+                // Add prediction line
+                svgContainer.append("path")
+                    .datum(tempData)
+                    .attr("class", "lineSel")
+                    .attr("d", line(tempData))
+                    .attr("stroke", "blue")
+                    .attr("stroke-width", 2)
+                    .attr("fill", "none"); 
+
+                // Add data point dots
+                svgContainer.selectAll(".dotSel")
+                        .data(tempData)
+                    .enter().append("circle")
+                        .attr("class", "dotSel")
+                        .attr("cx", function(d) { return xScale(d.date) })
+                        .attr("cy", function(d) { return yScale(d.close) })
+                        .attr("r", 2)
+                        .on("mouseover", tipMouseover)
+                        .on("mouseout", tipMouseout)
+            }
+
             function getPredictions(stockTicket, dataPoint) {
-                console.log("Calling server to make prediciton for data point...");
+                console.log("Calling server to make predicton for data point...");
                 console.log("Stock:"+stockTicket);
                 console.log("Data point:"+dataPoint);
 
@@ -229,7 +241,7 @@
                         console.log("Response status: "+obj.status);
                         if (obj.status == "OK") {
                             console.log("Call status OK!");
-                            //drawPredictionPlot(obj.reward_history);
+                            renderPredictions(obj.predictions, dataPoint);
                         } else {
                             console.log("Error:"+obj.message);
                         }

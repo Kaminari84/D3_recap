@@ -5,6 +5,8 @@ import numpy as np
 from scipy.special import softmax
 import pandas as pd
 from datetime import datetime
+from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error
 
 app = Flask(__name__)
 app.app_context().push()
@@ -402,7 +404,7 @@ def appl_test():
         #print("Key:",key," ,Val:",val)
         values.append( { 'datetime': key, 'close': val['close'] } )
         n += 1
-        if n>1000:
+        if n>200:
             break
 
     return render_template('show_aapl.html',
@@ -432,23 +434,88 @@ def get_stock_predictions():
         val = r['history'][key]
         #print("Key:",key," ,Val:",val)
         entries['datetime'].append( key )
-        entries['close'].append( val['close'] )
+        entries['close'].append( float(val['close']) )
         n += 1
-        if n>1000:
+        if n>200:
             break
 
     df = pd.DataFrame(entries, columns=['datetime','close'])
     df['datetime'] = pd.to_datetime(df['datetime'])
-    print(df.columns)
+    df.sort_values(by=['datetime'], inplace=True, ascending=True)
+    #print(df.columns)
     print(df.shape)
-    print(df.head(10))
+    #print(df.head(10))
 
     # Mask - only select data points from the past from this point
     mask = (df['datetime'] < data_point)
     print(df.loc[mask].shape)
     print(df.loc[mask].head(10))
 
+    #create the training data
+    n_features = 3
+    features = []
+    prices = []
 
-    json_resp = json.dumps({'status': 'OK', 'message':''})
+    feature_row = []
+    print("Iterating through past data...")
+    for index, row in df.loc[mask].iterrows():
+        print("Index:", index, ", Date:", row['datetime'], ", Close:", row['close'])
+        # If enough features in history set this price as the price to predict
+        if len(feature_row) >= n_features:
+            prices.append(row['close'])
+            features.append(feature_row)
+        
+        # Shift forward by one data point
+        feature_row = feature_row.copy()
+        feature_row.append(row['close'])
+        if len(feature_row) > n_features:
+            feature_row.pop(0)
+
+    print("Features:", features)
+    print("Prices:", prices)
+    
+    features = np.reshape(features, (len(features), n_features))
+    #print(features[:,0:n_features])
+   
+    #Initialize different models
+    svr_lin = SVR(kernel='linear', C=1e3)
+    svr_poly = SVR(kernel='poly', C=1e3, degree = 2) #, gamma='scale')
+    svr_rbf = SVR(kernel='rbf', C=1e3, gamma='auto')
+
+    #Train models
+    svr_lin.fit(features[:,0:n_features], prices)
+    svr_poly.fit(features[:,0:n_features], prices)
+    svr_rbf.fit(features[:,0:n_features], prices)
+
+    #Predict
+    predict_lin = svr_lin.predict(features[:,0:n_features])
+    predict_poly = svr_poly.predict(features[:,0:n_features])
+    predict_rbf = svr_rbf.predict(features[:,0:n_features])
+
+    #Evaluate
+    print("Predicted prices - linear:",predict_lin[-5:])
+    print("Predicted prices - RBF:",predict_rbf[-5:])
+    print("MSE for linear - training:", mean_squared_error(prices, predict_lin))
+    print("MSE for poly - training:", mean_squared_error(prices, predict_poly))
+    print("MSE for RBF - training:", mean_squared_error(prices, predict_rbf))
+
+    print("Test MSE low:",mean_squared_error([122.2, 134.5, 100.2], [122.1, 134.4, 100.2]))
+    print("Test MSE high:",mean_squared_error([122.2, 134.5, 100.2], [112.1, 138.8, 105.9]))
+
+    #Recursive prediction for k days ahead
+    gen_features = features[-1,0:n_features].tolist()
+    predictions = []
+    print("Gen features, start:", gen_features)
+    for day_i in range(30):
+        #print("Gen features:", gen_features[-n_features:])
+        form_features = np.reshape([gen_features[-n_features:]], (1, n_features))
+        print("Iter ", day_i,", form features:", form_features[0])
+        predict_rbf = svr_rbf.predict(form_features)
+        pred = predict_rbf[0] #round(,2)
+        gen_features.append(pred)
+        predictions.append(pred)
+
+    #Return predictions
+    json_resp = json.dumps({'status': 'OK', 'message':'', 'predictions':predictions})
     
     return make_response(json_resp, 200, {"content_type":"application/json"})
